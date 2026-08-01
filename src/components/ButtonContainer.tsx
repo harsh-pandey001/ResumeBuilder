@@ -2,15 +2,18 @@ import React, { useState } from "react";
 import { FaBriefcase, FaGraduationCap } from "react-icons/fa";
 
 interface ButtonContainerProps {
+  // Controlled from the resume store's `sections` — a prefilled resume (e.g.
+  // hydrated from CareerNext) starts with sections already on, so this
+  // component must not assume everything starts hidden.
+  experience: boolean;
+  education: boolean;
   onStateChange: (state: { experience: boolean; education: boolean }) => void;
 }
 
-const ButtonContainer: React.FC<ButtonContainerProps> = ({ onStateChange }) => {
+const ButtonContainer: React.FC<ButtonContainerProps> = ({ experience, education, onStateChange }) => {
   const [isButtonHovered, setIsButtonHovered] = useState(false);
   const [isButtonHovered2, setIsButtonHovered2] = useState(false);
   const [isContianerHovered, setIsContianerHovered] = useState(false);
-  const [includeExperiance, setIncludeExperiance] = useState(false);
-  const [includeEducation, setIncludeEducation] = useState(false);
 
   const styles: Record<string, React.CSSProperties> = {
     buttonContainer: {
@@ -47,13 +50,9 @@ const ButtonContainer: React.FC<ButtonContainerProps> = ({ onStateChange }) => {
 
   const handleClick = (type: "experience" | "education") => {
     if (type === "experience") {
-      const next = !includeExperiance;
-      setIncludeExperiance(next);
-      onStateChange({ experience: next, education: includeEducation });
+      onStateChange({ experience: !experience, education });
     } else {
-      const next = !includeEducation;
-      setIncludeEducation(next);
-      onStateChange({ experience: includeExperiance, education: next });
+      onStateChange({ experience, education: !education });
     }
   };
 
@@ -67,7 +66,7 @@ const ButtonContainer: React.FC<ButtonContainerProps> = ({ onStateChange }) => {
         style={{
           ...styles.button,
           ...(isButtonHovered ? styles.buttonHover : {}),
-          color: includeExperiance ? "rgba(245, 73, 144)" : "#fff",
+          color: experience ? "rgba(245, 73, 144)" : "#fff",
         }}
         onMouseEnter={() => setIsButtonHovered(true)}
         onMouseLeave={() => setIsButtonHovered(false)}
@@ -80,7 +79,7 @@ const ButtonContainer: React.FC<ButtonContainerProps> = ({ onStateChange }) => {
         style={{
           ...styles.button,
           ...(isButtonHovered2 ? styles.buttonHover : {}),
-          color: includeEducation ? "rgba(245, 73, 144)" : "#fff",
+          color: education ? "rgba(245, 73, 144)" : "#fff",
         }}
         onMouseEnter={() => setIsButtonHovered2(true)}
         onMouseLeave={() => setIsButtonHovered2(false)}
