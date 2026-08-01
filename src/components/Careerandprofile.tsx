@@ -1,23 +1,26 @@
 import React, { useState } from "react";
 import { FaRegListAlt, FaPlus, FaTimes, FaEdit } from "react-icons/fa";
 import ContentEditable from "react-contenteditable";
+import { useResumeStore } from "../store/resumeStore";
+import { stripTags } from "../utils/sanitize";
 
-const Careerandprofile = ({ rolesAndResponsibilities }) => {
+/** Career Summary bullet list — backed by `resume.careerHighlights` in the store. */
+const Careerandprofile: React.FC = () => {
+  const careerPoints = useResumeStore((s) => s.resume.careerHighlights);
+  const addToList = useResumeStore((s) => s.addToList);
+  const updateInList = useResumeStore((s) => s.updateInList);
+  const removeFromList = useResumeStore((s) => s.removeFromList);
+
+  // Section heading is a display label, not resume data — kept local.
   const [name, setName] = useState("Career Summary");
-  const [careerPoints, setCareerPoints] = useState(rolesAndResponsibilities);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPoint, setCurrentPoint] = useState("");
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
   const [isButtonHovered2, setIsButtonHovered2] = useState(false);
-  const sanitizeInput = (input) => input.replace(/<\/?[^>]+(>|$)/g, "");
 
-  const styles = {
-    section: {
-      margin: "20px 0",
-      padding: "0 20px",
-      // pageBreakBefore: "always"
-    },
+  const styles: Record<string, React.CSSProperties> = {
+    section: { margin: "20px 0", padding: "0 20px" },
     sectionTitle: {
       fontSize: "18px",
       fontWeight: "bold",
@@ -28,28 +31,11 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
       alignItems: "center",
       gap: "10px",
     },
-    headInput: {
-      paddingTop: "5px",
-    },
-    icon: {
-      fontSize: "0.9rem",
-      verticalAlign: "middle",
-      marginRight: "5px",
-    },
-    list: {
-      fontSize :"14px",
-    },
-    listItem: {
-      marginBottom: "10px",
-      whiteSpace: "pre-wrap",
-      wordWrap: "break-word",
-    },
-    actionIcons: {
-      marginLeft: "10px",
-      cursor: "pointer",
-      fontSize: "1rem",
-      color: "#007bff",
-    },
+    headInput: { paddingTop: "5px" },
+    icon: { fontSize: "0.9rem", verticalAlign: "middle", marginRight: "5px" },
+    list: { fontSize: "14px" },
+    listItem: { marginBottom: "10px", whiteSpace: "pre-wrap", wordWrap: "break-word" },
+    actionIcons: { marginLeft: "10px", cursor: "pointer", fontSize: "1rem", color: "#007bff" },
     addIcon: {
       color: "#000",
       borderRadius: "50%",
@@ -93,18 +79,8 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
       background: "#fff",
       borderRadius: "20px",
     },
-    card__title: {
-      fontSize: "27px",
-      fontWeight: "900",
-      color: "#333",
-    },
-    card__form: {
-      display: "flex",
-      flexDirection: "column",
-      gap: "10px",
-      alignItems: "center",
-    },
-
+    card__title: { fontSize: "27px", fontWeight: "900", color: "#333" },
+    card__form: { display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" },
     button: {
       border: "0",
       background: "#111",
@@ -116,9 +92,7 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
       fontSize: "18px",
       cursor: "pointer",
     },
-    buttonHover: {
-      opacity: "0.9",
-    },
+    buttonHover: { opacity: "0.9" },
     textarea: {
       marginTop: "10px",
       minWidth: "35rem",
@@ -144,38 +118,26 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
     },
   };
 
-  const handleNameChange = (event) => {
-    setName(sanitizeInput(event.target.value));
-  };
-
   const handleAddOrEditPoint = () => {
-    const trimmedpoint = currentPoint.trim();
-    if (!trimmedpoint) {
+    const trimmed = currentPoint.trim();
+    if (!trimmed) {
       alert("All fields are required.");
       return;
     }
-
     if (editingIndex !== null) {
-      const updatedPoints = [...careerPoints];
-      updatedPoints[editingIndex] = currentPoint;
-      setCareerPoints(updatedPoints);
+      updateInList("careerHighlights", editingIndex, currentPoint);
     } else {
-      setCareerPoints([...careerPoints, currentPoint]);
+      addToList("careerHighlights", currentPoint);
     }
     setCurrentPoint("");
     setEditingIndex(null);
     setIsModalOpen(false);
   };
 
-  const handleEdit = (index) => {
-    setCurrentPoint(careerPoints[index]);
+  const handleEdit = (index: number) => {
+    setCurrentPoint(careerPoints[index] ?? "");
     setEditingIndex(index);
     setIsModalOpen(true);
-  };
-
-  const handleDelete = (index) => {
-    const updatedPoints = careerPoints.filter((_, i) => i !== index);
-    setCareerPoints(updatedPoints);
   };
 
   return (
@@ -185,7 +147,7 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
           <FaRegListAlt style={styles.icon} />
           <ContentEditable
             html={name}
-            onChange={handleNameChange}
+            onChange={(e) => setName(stripTags(e.target.value))}
             style={styles.headInput}
           />
           <div
@@ -213,27 +175,20 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
               <FaTimes
                 className="no-print"
                 style={{ ...styles.actionIcons, color: "#ff4d4d" }}
-                onClick={() => handleDelete(index)}
+                onClick={() => removeFromList("careerHighlights", index)}
                 title="Delete point"
               />
             </li>
           ))}
         </ul>
 
-        {/*Add Points modal */}
+        {/* Add / edit point modal */}
         {isModalOpen && (
           <>
-            <div
-              className="no-print"
-              style={styles.overlay}
-              onClick={() => setIsModalOpen(false)}
-            />
+            <div className="no-print" style={styles.overlay} onClick={() => setIsModalOpen(false)} />
             <div className="no-print" style={styles.modal}>
               <div style={styles.card}>
-                <button
-                  style={styles.closeButton}
-                  onClick={() => setIsModalOpen(false)}
-                >
+                <button style={styles.closeButton} onClick={() => setIsModalOpen(false)}>
                   &times;
                 </button>
                 <span style={styles.card__title}>
@@ -258,10 +213,7 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
                     }}
                   >
                     <button
-                      style={{
-                        ...styles.button,
-                        ...(isButtonHovered2 ? styles.buttonHover : {}),
-                      }}
+                      style={{ ...styles.button, ...(isButtonHovered2 ? styles.buttonHover : {}) }}
                       onMouseEnter={() => setIsButtonHovered2(true)}
                       onMouseLeave={() => setIsButtonHovered2(false)}
                       onClick={() => setIsModalOpen(false)}
@@ -269,10 +221,7 @@ const Careerandprofile = ({ rolesAndResponsibilities }) => {
                       Cancel
                     </button>
                     <button
-                      style={{
-                        ...styles.button,
-                        ...(isButtonHovered ? styles.buttonHover : {}),
-                      }}
+                      style={{ ...styles.button, ...(isButtonHovered ? styles.buttonHover : {}) }}
                       onMouseEnter={() => setIsButtonHovered(true)}
                       onMouseLeave={() => setIsButtonHovered(false)}
                       onClick={handleAddOrEditPoint}

@@ -1,45 +1,60 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
 import { ClipLoader } from "react-spinners";
+import { API_BASE_URL } from "../config";
 
 Modal.setAppElement("#root");
 
-const Startmodal = ({ isOpen, onClose, onSubmit }) => {
-  const [projectList, setProjectList] = useState([]);
+export interface StartModalSubmitOptions {
+  includeEducation: boolean;
+  includeInterests: boolean;
+  includeExperiance: boolean;
+}
+
+interface StartmodalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (
+    candidatename: string,
+    designation: string,
+    jd: string,
+    experience: string,
+    selectedProjects: string[],
+    options: StartModalSubmitOptions,
+  ) => void;
+}
+
+interface ProjectListItem {
+  _id: { $oid: string };
+  name: string;
+}
+
+type FocusableField = "" | "candidatename" | "designation" | "experience" | "jd";
+
+const Startmodal: React.FC<StartmodalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const [projectList, setProjectList] = useState<ProjectListItem[]>([]);
   const [candidatename, setCandidatename] = useState("");
   const [designation, setDesignation] = useState("");
   const [jd, setJd] = useState("");
   const [experience, setExperience] = useState("");
-  const [selectedProjects, setSelectedProjects] = useState([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [includeEducation, setIncludeEducation] = useState(false);
-  //   const [educationDetails, setEducationDetails] = useState({});
   const [includeInterests, setIncludeInterests] = useState(false);
   const [includeExperiance, setIncludeExperiance] = useState(false);
-  //   const [interestDetails, setInterestDetails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
-  const [focusedField, setFocusedField] = useState("");
+  const [focusedField, setFocusedField] = useState<FocusableField>("");
 
-  const handleFocus = (field) => {
-    setFocusedField(field);
+  const handleFocus = (field: FocusableField) => setFocusedField(field);
+
+  const handleBlur = (field: FocusableField) => {
+    if (field === "candidatename" && !candidatename) setFocusedField("");
+    if (field === "designation" && !designation) setFocusedField("");
+    if (field === "experience" && !experience) setFocusedField("");
+    if (field === "jd" && !jd) setFocusedField("");
   };
 
-  const handleBlur = (field) => {
-    if (field === "candidatename" && !candidatename) {
-      setFocusedField("");
-    }
-    if (field === "designation" && !designation) {
-      setFocusedField("");
-    }
-    if (field === "experience" && !experience) {
-      setFocusedField("");
-    }
-    if (field === "jd" && !jd) {
-      setFocusedField("");
-    }
-  };
-
-  const styles = {
+  const styles: Record<string, React.CSSProperties> = {
     loader: {
       display: "flex",
       justifyContent: "center",
@@ -66,19 +81,9 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
       display: "flex",
       flexDirection: "column",
     },
-    form: {
-      marginTop: "15px",
-      display: "flex",
-      flexDirection: "column",
-    },
-    title: {
-      textAlign: "center",
-      fontSize: "20px",
-      fontWeight: "600",
-    },
-    group: {
-      position: "relative",
-    },
+    form: { marginTop: "15px", display: "flex", flexDirection: "column" },
+    title: { textAlign: "center", fontSize: "20px", fontWeight: "600" },
+    group: { position: "relative" },
     inputarea: {
       padding: "10px",
       marginBottom: "10px",
@@ -110,15 +115,10 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
       fontWeight: "600",
       fontSize: "10px",
     },
-    inputFocus: {
-      borderColor: "#3366cc",
-      outline: "none",
-    },
-    textarea: {
-      resize: "none",
-      height: "100px",
-      marginBottom: "5px",
-    },
+    // Was referenced as `inputareaFocus` (a typo) and so never applied — fixed
+    // to actually match, so the focus border color now works as intended.
+    inputFocus: { borderColor: "#3366cc", outline: "none" },
+    textarea: { resize: "none", height: "100px", marginBottom: "5px" },
     button: {
       backgroundColor: "#3366cc",
       color: "#fff",
@@ -131,66 +131,35 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
       marginTop: "5px",
       width: "50%",
     },
-    buttonHover: {
-      backgroundColor: "#27408b",
-    },
-    pjtitle: {
-      textAlign: "center",
-      fontSize: "15px",
-      fontWeight: "600",
-    },
-    projectGrid: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "5px",
-      padding: "0px 5px",
-      justifyContent: "flex-start",
-    },
-    project: {
-      fontSize: "13px",
-      fontWeight: "400",
-      display: "flex",
-      alignItems: "center",
-    },
-    checks: {
-      display: "flex",
-      alignItems: "center",
-    },
-    eduwork: {
-      fontSize: "13px",
-      fontWeight: "400",
-      display: "flex",
-      justifyContent: "space-between",
-      marginBottom: "10px",
-    },
-  };
-
-  const fetchProjectlist = async () => {
-    try {
-      const response = await fetch(
-        "https://fastapi-app-latest-dtka.onrender.com/list-projects"
-      );
-      const data = await response.json();
-      setProjectList(data.projects || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+    buttonHover: { backgroundColor: "#27408b" },
+    pjtitle: { textAlign: "center", fontSize: "15px", fontWeight: "600" },
+    projectGrid: { display: "flex", flexWrap: "wrap", gap: "5px", padding: "0px 5px", justifyContent: "flex-start" },
+    project: { fontSize: "13px", fontWeight: "400", display: "flex", alignItems: "center" },
+    checks: { display: "flex", alignItems: "center" },
+    eduwork: { fontSize: "13px", fontWeight: "400", display: "flex", justifyContent: "space-between", marginBottom: "10px" },
   };
 
   useEffect(() => {
+    const fetchProjectlist = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/list-projects`);
+        const data = await response.json();
+        setProjectList(data.projects || []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchProjectlist();
   }, []);
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(candidatename, designation, jd, experience, selectedProjects, {
       includeEducation,
-      //   educationDetails,
       includeInterests,
       includeExperiance,
-      //   interestDetails,
     });
   };
 
@@ -206,12 +175,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
           onRequestClose={onClose}
           shouldCloseOnOverlayClick={false}
           contentLabel="Project Form"
-          style={{
-            content: styles.content,
-            overlay: {
-              background: "#fff",
-            },
-          }}
+          style={{ content: styles.content, overlay: { background: "#fff" } }}
         >
           <div style={styles.card}>
             <span style={styles.title}>Enter Resume Details</span>
@@ -220,9 +184,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                 <input
                   style={{
                     ...styles.inputarea,
-                    ...(focusedField === "candidatename" || candidatename
-                      ? styles.inputareaFocus
-                      : {}),
+                    ...(focusedField === "candidatename" || candidatename ? styles.inputFocus : {}),
                   }}
                   value={candidatename}
                   type="text"
@@ -233,9 +195,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                 <label
                   style={{
                     ...styles.label,
-                    ...(focusedField === "candidatename" || candidatename
-                      ? styles.labelFloating
-                      : {}),
+                    ...(focusedField === "candidatename" || candidatename ? styles.labelFloating : {}),
                   }}
                 >
                   Name
@@ -246,9 +206,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                 <input
                   style={{
                     ...styles.inputarea,
-                    ...(focusedField === "designation" || designation
-                      ? styles.inputareaFocus
-                      : {}),
+                    ...(focusedField === "designation" || designation ? styles.inputFocus : {}),
                   }}
                   value={designation}
                   type="text"
@@ -259,9 +217,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                 <label
                   style={{
                     ...styles.label,
-                    ...(focusedField === "designation" || designation
-                      ? styles.labelFloating
-                      : {}),
+                    ...(focusedField === "designation" || designation ? styles.labelFloating : {}),
                   }}
                 >
                   Designation
@@ -272,9 +228,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                 <input
                   style={{
                     ...styles.inputarea,
-                    ...(focusedField === "experience" || experience
-                      ? styles.inputareaFocus
-                      : {}),
+                    ...(focusedField === "experience" || experience ? styles.inputFocus : {}),
                   }}
                   value={experience}
                   type="text"
@@ -285,9 +239,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                 <label
                   style={{
                     ...styles.label,
-                    ...(focusedField === "experience" || experience
-                      ? styles.labelFloating
-                      : {}),
+                    ...(focusedField === "experience" || experience ? styles.labelFloating : {}),
                   }}
                 >
                   Experience
@@ -304,34 +256,16 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                     Include Education
                   </label>
                   {includeEducation && (
-                    <>
-                      {/* <textarea
-                  placeholder="Enter Max Degree college Name"
-                  value={educationDetails}
-                  onChange={(e) => setEducationDetails(e.target.value)}
-                  required
-                /> */}
-                      <div>
-                        <label style={styles.checks} >
-                          <input
-                            type="checkbox"
-                            checked={includeInterests}
-                            onChange={(e) =>
-                              setIncludeInterests(e.target.checked)
-                            }
-                          />
-                          Include Interests
-                        </label>
-                        {/* {includeInterests && (
-                <textarea
-                  placeholder="Enter Interest Details"
-                  value={interestDetails}
-                  onChange={(e) => setInterestDetails(e.target.value)}
-                  required
-                />
-              )} */}
-                      </div>
-                    </>
+                    <div>
+                      <label style={styles.checks}>
+                        <input
+                          type="checkbox"
+                          checked={includeInterests}
+                          onChange={(e) => setIncludeInterests(e.target.checked)}
+                        />
+                        Include Interests
+                      </label>
+                    </div>
                   )}
                 </div>
                 <div>
@@ -350,23 +284,14 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                   style={{
                     ...styles.inputarea,
                     ...styles.textarea,
-                    ...(focusedField === "jd" || jd
-                      ? styles.inputareaFocus
-                      : {}),
+                    ...(focusedField === "jd" || jd ? styles.inputFocus : {}),
                   }}
                   value={jd}
                   onChange={(e) => setJd(e.target.value)}
                   onFocus={() => handleFocus("jd")}
                   onBlur={() => handleBlur("jd")}
                 />
-                <label
-                  style={{
-                    ...styles.label,
-                    ...(focusedField === "jd" || jd
-                      ? styles.labelFloating
-                      : {}),
-                  }}
-                >
+                <label style={{ ...styles.label, ...(focusedField === "jd" || jd ? styles.labelFloating : {}) }}>
                   Job Description (JD)
                 </label>
               </div>
@@ -382,7 +307,7 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                         setSelectedProjects((prev) =>
                           prev.includes(project._id.$oid)
                             ? prev.filter((id) => id !== project._id.$oid)
-                            : [...prev, project._id.$oid]
+                            : [...prev, project._id.$oid],
                         )
                       }
                     />
@@ -390,20 +315,10 @@ const Startmodal = ({ isOpen, onClose, onSubmit }) => {
                   </div>
                 ))}
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginTop: "5px",
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: "5px" }}>
                 <button
                   type="submit"
-                  style={{
-                    ...styles.button,
-                    ...(isButtonHovered ? styles.buttonHover : {}),
-                  }}
+                  style={{ ...styles.button, ...(isButtonHovered ? styles.buttonHover : {}) }}
                   onMouseEnter={() => setIsButtonHovered(true)}
                   onMouseLeave={() => setIsButtonHovered(false)}
                 >

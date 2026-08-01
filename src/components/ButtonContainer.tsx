@@ -1,13 +1,18 @@
 import React, { useState } from "react";
 import { FaBriefcase, FaGraduationCap } from "react-icons/fa";
 
-const ButtonContainer = ({ onStateChange }) => {
+interface ButtonContainerProps {
+  onStateChange: (state: { experience: boolean; education: boolean }) => void;
+}
+
+const ButtonContainer: React.FC<ButtonContainerProps> = ({ onStateChange }) => {
   const [isButtonHovered, setIsButtonHovered] = useState(false);
   const [isButtonHovered2, setIsButtonHovered2] = useState(false);
   const [isContianerHovered, setIsContianerHovered] = useState(false);
-   const [includeExperiance, setIncludeExperiance] = useState(false);
-   const [includeEducation, setIncludeEducation] = useState(false);
-  const styles = {
+  const [includeExperiance, setIncludeExperiance] = useState(false);
+  const [includeEducation, setIncludeEducation] = useState(false);
+
+  const styles: Record<string, React.CSSProperties> = {
     buttonContainer: {
       display: "flex",
       backgroundColor: "rgba(0, 73, 144)",
@@ -35,66 +40,53 @@ const ButtonContainer = ({ onStateChange }) => {
       transition: "all ease-in-out 0.3s",
       cursor: "pointer",
     },
-    buttonHover: {
-      transform: "translateY(-3px)",
-    },
-    buttonContainerHover : {
-      height: "125px",
-      transition: "all 0.5s"
-    },
-    icon: {
-      fontSize: "20px",
-    },
+    buttonHover: { transform: "translateY(-3px)" },
+    buttonContainerHover: { height: "125px", transition: "all 0.5s" },
+    icon: { fontSize: "20px" },
   };
 
-  const handleClick = (type) => {
+  const handleClick = (type: "experience" | "education") => {
     if (type === "experience") {
-      const newExperienceState = !includeExperiance;
-      setIncludeExperiance(newExperienceState);
-      onStateChange({
-        experience: newExperienceState,
-        education: includeEducation,
-      });
-    } else if (type === "education") {
-      const newEducationState = !includeEducation;
-      setIncludeEducation(newEducationState);
-      onStateChange({
-        experience: includeExperiance,
-        education: newEducationState,
-      });
+      const next = !includeExperiance;
+      setIncludeExperiance(next);
+      onStateChange({ experience: next, education: includeEducation });
+    } else {
+      const next = !includeEducation;
+      setIncludeEducation(next);
+      onStateChange({ experience: includeExperiance, education: next });
     }
   };
 
   return (
-    <div style={{ ...styles.buttonContainer,...(isContianerHovered ? styles.buttonContainerHover : {})}}
-    onMouseEnter={() => setIsContianerHovered(true)}
-    onMouseLeave={() => setIsContianerHovered(false)}>
+    <div
+      style={{ ...styles.buttonContainer, ...(isContianerHovered ? styles.buttonContainerHover : {}) }}
+      onMouseEnter={() => setIsContianerHovered(true)}
+      onMouseLeave={() => setIsContianerHovered(false)}
+    >
       <button
         style={{
           ...styles.button,
           ...(isButtonHovered ? styles.buttonHover : {}),
-          color : includeExperiance ? "rgba(245, 73, 144)" : "#fff" 
+          color: includeExperiance ? "rgba(245, 73, 144)" : "#fff",
         }}
         onMouseEnter={() => setIsButtonHovered(true)}
         onMouseLeave={() => setIsButtonHovered(false)}
         onClick={() => handleClick("experience")}
       >
         <FaBriefcase style={styles.icon} />
-
       </button>
-     
+
       <button
         style={{
           ...styles.button,
           ...(isButtonHovered2 ? styles.buttonHover : {}),
-          color : includeEducation ? "rgba(245, 73, 144)" : "#fff"
+          color: includeEducation ? "rgba(245, 73, 144)" : "#fff",
         }}
         onMouseEnter={() => setIsButtonHovered2(true)}
         onMouseLeave={() => setIsButtonHovered2(false)}
         onClick={() => handleClick("education")}
       >
         <FaGraduationCap style={styles.icon} />
-
       </button>
     </div>
   );

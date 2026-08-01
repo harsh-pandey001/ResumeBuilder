@@ -1,28 +1,32 @@
 import React, { useState } from "react";
 import ContentEditable from "react-contenteditable";
 import { FaBriefcase, FaPlus, FaEdit, FaTimes } from "react-icons/fa";
+import { useResumeStore } from "../store/resumeStore";
+import { stripTags } from "../utils/sanitize";
 
-const Workexperience = () => {
-  const [workExperiences, setWorkExperiences] = useState([
-    {
-      company: "Designation, Company name",
-      experience: "Time Period | Location",
-      workPoints: [
-        "Evaluated new tools, technologies, and design patterns by creating POCs to come up with trustable solutions for the clients which led to 60% more client conversions.",
-        "Communicated and collaborated with multi-disciplinary teams of engineers, clients, and stakeholders daily.",
-        "Mentored and led the team to develop high-quality, maintainable, robust, scalable, and user-facing solutions with the highest code coverage and standardization.",
-        "Developed a centralized system to monitor health, logging, and alerts about any breakdown for all the systems delivered and managed by the company, which led to more satisfied clients.",
-        "Learned various technologies and managed teams working in different domains.",
-      ],
-    },
-  ]);
-  const [isAddExperienceModalOpen, setIsAddExperienceModalOpen] =
-    useState(false);
+interface EditingPointRef {
+  index: number;
+  experienceId: string;
+}
+
+/**
+ * Work Experience list — backed by `resume.experience` in the store. Starts
+ * empty (the original seeded one fake "Designation, Company name" sample
+ * entry; P0 hardening drops shipped sample/placeholder content — use "+" to
+ * add the first real entry).
+ */
+const Workexperience: React.FC = () => {
+  const workExperiences = useResumeStore((s) => s.resume.experience);
+  const addExperience = useResumeStore((s) => s.addExperience);
+  const updateExperience = useResumeStore((s) => s.updateExperience);
+  const removeExperience = useResumeStore((s) => s.removeExperience);
+
+  const [isAddExperienceModalOpen, setIsAddExperienceModalOpen] = useState(false);
   const [newCompany, setNewCompany] = useState("");
   const [newExperience, setNewExperience] = useState("");
   const [newWorkPoints, setNewWorkPoints] = useState("");
   const [currentPoint, setCurrentPoint] = useState("");
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingPoint, setEditingPoint] = useState<EditingPointRef | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
   const [isButtonHovered2, setIsButtonHovered2] = useState(false);
@@ -33,31 +37,23 @@ const Workexperience = () => {
     const trimmedPoints = newWorkPoints
       .split("\n")
       .map((point) => point.trim())
-      .filter((point) => point);
+      .filter(Boolean);
 
     if (!trimmedCompany || !trimmedExperience || trimmedPoints.length === 0) {
       alert("All fields are required.");
       return;
     }
 
-    setWorkExperiences([
-      ...workExperiences,
-      {
-        company: trimmedCompany,
-        experience: trimmedExperience,
-        workPoints: trimmedPoints,
-      },
-    ]);
-
+    addExperience({ company: trimmedCompany, duration: trimmedExperience, points: trimmedPoints });
     setNewCompany("");
     setNewExperience("");
     setNewWorkPoints("");
     setIsAddExperienceModalOpen(false);
   };
 
-  const handleEditPoint = (index, workExperienceIndex) => {
-    setCurrentPoint(workExperiences[workExperienceIndex].workPoints[index]);
-    setEditingIndex({ index, workExperienceIndex });
+  const handleEditPoint = (index: number, experienceId: string, points: string[]) => {
+    setCurrentPoint(points[index] ?? "");
+    setEditingPoint({ index, experienceId });
     setIsModalOpen(true);
   };
 
@@ -67,42 +63,27 @@ const Workexperience = () => {
       alert("Point cannot be empty.");
       return;
     }
+    if (!editingPoint) return;
+    const { index, experienceId } = editingPoint;
+    const experience = workExperiences.find((e) => e.id === experienceId);
+    if (!experience) return;
+    const updatedPoints = [...experience.points];
+    updatedPoints[index] = trimmedPoint;
+    updateExperience(experienceId, { points: updatedPoints });
 
-    const updatedWorkExperiences = [...workExperiences];
-    const { index, workExperienceIndex } = editingIndex;
-    updatedWorkExperiences[workExperienceIndex].workPoints[index] =
-      trimmedPoint;
-
-    setWorkExperiences(updatedWorkExperiences);
     setCurrentPoint("");
-    setEditingIndex(null);
+    setEditingPoint(null);
     setIsModalOpen(false);
   };
 
-  const handleDeleteExperience = (index) => {
-    const updatedWorkExperiences = workExperiences.filter(
-      (_, i) => i !== index
-    );
-    setWorkExperiences(updatedWorkExperiences);
+  const removePoint = (experienceId: string, index: number) => {
+    const experience = workExperiences.find((e) => e.id === experienceId);
+    if (!experience) return;
+    updateExperience(experienceId, { points: experience.points.filter((_, i) => i !== index) });
   };
 
-  const handleEditCompany = (event, index) => {
-    const updatedWorkExperiences = [...workExperiences];
-    updatedWorkExperiences[index].company = event.target.value;
-    setWorkExperiences(updatedWorkExperiences);
-  };
-
-  const handleEditExperience = (event, index) => {
-    const updatedWorkExperiences = [...workExperiences];
-    updatedWorkExperiences[index].experience = event.target.value;
-    setWorkExperiences(updatedWorkExperiences);
-  };
-
-  const styles = {
-    section: {
-      margin: "20px 0",
-      padding: "0 20px",
-    },
+  const styles: Record<string, React.CSSProperties> = {
+    section: { margin: "20px 0", padding: "0 20px" },
     sectionTitle: {
       fontSize: "18px",
       fontWeight: "bold",
@@ -113,9 +94,7 @@ const Workexperience = () => {
       alignItems: "center",
       gap: "10px",
     },
-    listItem: {
-      marginBottom: "5px",
-    },
+    listItem: { marginBottom: "5px" },
     addIcon: {
       color: "#000",
       borderRadius: "50%",
@@ -126,11 +105,7 @@ const Workexperience = () => {
       fontSize: "1rem",
       marginLeft: "10px",
     },
-    actionIcons: {
-      cursor: "pointer",
-      marginLeft: "10px",
-      width: "25px",
-    },
+    actionIcons: { cursor: "pointer", marginLeft: "10px", width: "25px" },
     modal: {
       position: "fixed",
       top: "50%",
@@ -162,22 +137,9 @@ const Workexperience = () => {
       background: "#fff",
       borderRadius: "20px",
     },
-    card__title: {
-      fontSize: "25px",
-      fontWeight: "900",
-      color: "#333",
-    },
-    card__form: {
-      display: "flex",
-      flexDirection: "column",
-      gap: "10px",
-    },
-    icon:{
-      fontSize: "0.9rem",
-      verticalAlign: "middle",
-      marginRight: "5px",
-      paddingBottom :"5px"
-    },
+    card__title: { fontSize: "25px", fontWeight: "900", color: "#333" },
+    card__form: { display: "flex", flexDirection: "column", gap: "10px" },
+    icon: { fontSize: "0.9rem", verticalAlign: "middle", marginRight: "5px", paddingBottom: "5px" },
     input: {
       marginTop: "10px",
       outline: "0",
@@ -211,9 +173,7 @@ const Workexperience = () => {
       fontSize: "15px",
       cursor: "pointer",
     },
-    buttonHover: {
-      opacity: "0.9",
-    },
+    buttonHover: { opacity: "0.9" },
     closeButton: {
       position: "absolute",
       top: "10px",
@@ -230,65 +190,48 @@ const Workexperience = () => {
   return (
     <div style={styles.section}>
       <h2 style={styles.sectionTitle}>
-        <FaBriefcase style={styles.icon}/> Work Experience
-        <FaPlus
-          className="no-print"
-          style={styles.addIcon}
-          onClick={() => setIsAddExperienceModalOpen(true)}
-        />
+        <FaBriefcase style={styles.icon} /> Work Experience
+        <FaPlus className="no-print" style={styles.addIcon} onClick={() => setIsAddExperienceModalOpen(true)} />
       </h2>
 
-      {workExperiences.map((workExperience, workExperienceIndex) => (
-        <div key={workExperienceIndex}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
+      {workExperiences.map((workExperience) => (
+        <div key={workExperience.id}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ margin: "0" }}>
               <ContentEditable
                 html={workExperience.company}
-                onChange={(e) => handleEditCompany(e, workExperienceIndex)}
-                style={{ padding: "5px", fontSize:"16px"}}
+                onChange={(e) => updateExperience(workExperience.id, { company: stripTags(e.target.value) })}
+                style={{ padding: "5px", fontSize: "16px" }}
               />
             </h3>
             <FaTimes
               className="no-print"
               style={{ ...styles.actionIcons, color: "#ff4d4d" }}
-              onClick={() => handleDeleteExperience(workExperienceIndex)}
+              onClick={() => removeExperience(workExperience.id)}
             />
           </div>
           <p style={{ margin: "0" }}>
             <ContentEditable
-              html={workExperience.experience}
-              onChange={(e) => handleEditExperience(e, workExperienceIndex)}
-              style={{ padding: "5px",fontSize:"16px" }}
+              html={workExperience.duration}
+              onChange={(e) => updateExperience(workExperience.id, { duration: stripTags(e.target.value) })}
+              style={{ padding: "5px", fontSize: "16px" }}
             />
           </p>
           <ul>
-            {workExperience.workPoints.map((point, index) => (
-              <div key={index} style={{ display: "flex",fontSize:"14px"   }}>
+            {workExperience.points.map((point, index) => (
+              <div key={index} style={{ display: "flex", fontSize: "14px" }}>
                 <li style={styles.listItem}>
                   <span>{point}</span>
                 </li>
                 <FaEdit
                   className="no-print"
                   style={styles.actionIcons}
-                  onClick={() => handleEditPoint(index, workExperienceIndex)}
+                  onClick={() => handleEditPoint(index, workExperience.id, workExperience.points)}
                 />
                 <FaTimes
                   className="no-print"
                   style={{ ...styles.actionIcons, color: "#ff4d4d" }}
-                  onClick={() => {
-                    const updatedExperiences = [...workExperiences];
-                    updatedExperiences[workExperienceIndex].workPoints.splice(
-                      index,
-                      1
-                    );
-                    setWorkExperiences(updatedExperiences);
-                  }}
+                  onClick={() => removePoint(workExperience.id, index)}
                 />
               </div>
             ))}
@@ -298,16 +241,10 @@ const Workexperience = () => {
 
       {isAddExperienceModalOpen && (
         <>
-          <div
-            style={styles.overlay}
-            onClick={() => setIsAddExperienceModalOpen(false)}
-          />
+          <div style={styles.overlay} onClick={() => setIsAddExperienceModalOpen(false)} />
           <div style={styles.modal}>
             <div style={styles.card}>
-              <button
-                style={styles.closeButton}
-                onClick={() => setIsAddExperienceModalOpen(false)}
-              >
+              <button style={styles.closeButton} onClick={() => setIsAddExperienceModalOpen(false)}>
                 &times;
               </button>
               <span style={styles.card__title}>Add New Experience</span>
@@ -342,10 +279,7 @@ const Workexperience = () => {
                   }}
                 >
                   <button
-                    style={{
-                      ...styles.button,
-                      ...(isButtonHovered2 ? styles.buttonHover : {}),
-                    }}
+                    style={{ ...styles.button, ...(isButtonHovered2 ? styles.buttonHover : {}) }}
                     onMouseEnter={() => setIsButtonHovered2(true)}
                     onMouseLeave={() => setIsButtonHovered2(false)}
                     onClick={() => setIsAddExperienceModalOpen(false)}
@@ -353,10 +287,7 @@ const Workexperience = () => {
                     Cancel
                   </button>
                   <button
-                    style={{
-                      ...styles.button,
-                      ...(isButtonHovered ? styles.buttonHover : {}),
-                    }}
+                    style={{ ...styles.button, ...(isButtonHovered ? styles.buttonHover : {}) }}
                     onMouseEnter={() => setIsButtonHovered(true)}
                     onMouseLeave={() => setIsButtonHovered(false)}
                     onClick={handleAddExperience}
@@ -375,10 +306,7 @@ const Workexperience = () => {
           <div style={styles.overlay} onClick={() => setIsModalOpen(false)} />
           <div style={styles.modal}>
             <div style={styles.card}>
-            <button
-                style={styles.closeButton}
-                onClick={() => setIsModalOpen(false)}
-              >
+              <button style={styles.closeButton} onClick={() => setIsModalOpen(false)}>
                 &times;
               </button>
               <span style={styles.card__title}>Edit Work Point</span>
@@ -390,7 +318,7 @@ const Workexperience = () => {
                   placeholder="Edit Work Point"
                   rows={10}
                 />
-                 <div
+                <div
                   style={{
                     display: "flex",
                     gap: "50px",
@@ -401,10 +329,7 @@ const Workexperience = () => {
                   }}
                 >
                   <button
-                    style={{
-                      ...styles.button,
-                      ...(isButtonHovered2 ? styles.buttonHover : {}),
-                    }}
+                    style={{ ...styles.button, ...(isButtonHovered2 ? styles.buttonHover : {}) }}
                     onMouseEnter={() => setIsButtonHovered2(true)}
                     onMouseLeave={() => setIsButtonHovered2(false)}
                     onClick={() => setIsModalOpen(false)}
@@ -412,10 +337,7 @@ const Workexperience = () => {
                     Cancel
                   </button>
                   <button
-                    style={{
-                      ...styles.button,
-                      ...(isButtonHovered ? styles.buttonHover : {}),
-                    }}
+                    style={{ ...styles.button, ...(isButtonHovered ? styles.buttonHover : {}) }}
                     onMouseEnter={() => setIsButtonHovered(true)}
                     onMouseLeave={() => setIsButtonHovered(false)}
                     onClick={handleAddOrEditPoint}
@@ -423,7 +345,6 @@ const Workexperience = () => {
                     Save
                   </button>
                 </div>
-               
               </div>
             </div>
           </div>
